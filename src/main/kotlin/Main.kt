@@ -22,6 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
@@ -251,10 +254,12 @@ fun ListKey(
 @Composable
 fun FileItem(myIcon: ImageVector, file: File, color: Color, onDelete: () -> Unit, selectedFile: (file: File) -> Unit) {
 
+    var isNewWindowOpen by remember { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = Modifier.background(color = color, shape = RoundedCornerShape(20.dp)).fillMaxWidth().clickable {
             selectedFile(file)
+            isNewWindowOpen = true
         }) {
         Icon(imageVector = myIcon, contentDescription = null)
         Spacer(Modifier.width(10.dp))
@@ -264,6 +269,12 @@ fun FileItem(myIcon: ImageVector, file: File, color: Color, onDelete: () -> Unit
             file.delete()
             onDelete()
         })
+    }
+
+    if (isNewWindowOpen) {
+        openNewWindow(file) {
+            isNewWindowOpen = false
+        }
     }
 }
 
@@ -278,9 +289,23 @@ fun openFileDialog(
 }
 
 @Composable
-fun openNewWindow(file: File) = application {
-    Window(onCloseRequest = ::exitApplication) {
-        Text(text = file.name)
+fun openNewWindow(file: File, onClose: () -> Unit) {
+    Window(onCloseRequest = onClose, title = file.name) {
+        Column(modifier = Modifier.verticalScroll(rememberScrollState()).height(600.dp)) {
+            Text(
+                text = "File Name: ${file.name}",
+                fontWeight = FontWeight(600),
+                fontSize = TextUnit(60f, type = TextUnitType(10))
+            )
+            val fileContent = file.readText()
+            Text(text = "Content:", fontWeight = FontWeight(600))
+            val end = if (fileContent.length > 5000) {
+                5000
+            } else {
+                fileContent.length
+            }
+            Text(text = fileContent.substring(0, end))
+        }
     }
 }
 
