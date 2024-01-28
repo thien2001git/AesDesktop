@@ -28,8 +28,15 @@ import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import org.apache.poi.openxml4j.exceptions.NotOfficeXmlFileException
+import org.apache.poi.xwpf.usermodel.XWPFDocument
+import org.apache.poi.xwpf.usermodel.XWPFPicture
+import org.apache.poi.xwpf.usermodel.XWPFPictureData
 import java.awt.FileDialog
 import java.io.File
+import java.io.FileInputStream
 import java.nio.file.*
 import java.security.Key
 import javax.crypto.BadPaddingException
@@ -290,6 +297,11 @@ fun openFileDialog(
 
 @Composable
 fun openNewWindow(file: File, onClose: () -> Unit) {
+    var doxContent by remember { mutableStateOf("") }
+    var type by remember { mutableStateOf("") }
+    val fileContent = remember {
+        mutableStateOf(ArrayList<String>())
+    }
     Window(onCloseRequest = onClose, title = file.name) {
         Column(modifier = Modifier.verticalScroll(rememberScrollState(0)).fillMaxSize()) {
             Text(
@@ -297,23 +309,74 @@ fun openNewWindow(file: File, onClose: () -> Unit) {
                 fontWeight = FontWeight(600),
                 fontSize = TextUnit(60f, type = TextUnitType(10))
             )
-            val fileContent = file.readLines()
-            Text(text = "Content:", fontWeight = FontWeight(600))
-            val end = if (fileContent.size > 500) {
-                500
-            } else {
-                fileContent.size - 1
+
+            if (file.name.contains(".docx")) {
+                runBlocking(Dispatchers.IO) {
+                    try {
+                        doxContent = readDocxFile(file)
+                        type = ".docx"
+                    } catch (ex: NotOfficeXmlFileException) {
+                        type = ""
+                    }
+                }
             }
-            for (i in 0..end) {
-                Row(modifier = Modifier.fillMaxWidth().clickable { }) {
-                    Text(text = "${i + 1}")
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(text = fileContent[i])
+
+            when(type) {
+                ".docx" -> {
+                    Text(text = doxContent)
+                }
+
+                else -> {
+
+                    runBlocking(Dispatchers.IO) {
+                        fileContent.value = file.readLines() as ArrayList<String>
+
+                    }
+                    Text(text = "Content:", fontWeight = FontWeight(600))
+                    val end = if (fileContent.value.size > 500) {
+                        500
+                    } else {
+                        fileContent.value.size - 1
+                    }
+                    for (i in 0..end) {
+                        Row(modifier = Modifier.fillMaxWidth().clickable { }) {
+                            Text(text = "${i + 1}")
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(text = fileContent.value[i])
+                        }
+                    }
                 }
             }
 
         }
     }
+}
+
+suspend fun readDocxFile(file: File): String {
+    if (!file.exists()) {
+        return "File not found: ${file.path}"
+    }
+
+    val fis = FileInputStream(file)
+    val doc = XWPFDocument(fis)
+    val paragraphs = doc.paragraphs
+
+    // Extract text content from paragraphs
+    val content = StringBuilder()
+    for (paragraph in paragraphs) {
+        content.append(paragraph.text).append("\n")
+    }
+
+    // Extract embedded pictures (if needed)
+    for (picture in doc.allPictures) {
+        // Access picture data, type, etc.
+        if (picture is XWPFPicture) {
+            val pictureData: XWPFPictureData = picture.pictureData
+            // Handle the picture data as needed
+        }
+    }
+
+    return content.toString()
 }
 
 fun main() = application {
