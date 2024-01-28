@@ -291,20 +291,27 @@ fun openFileDialog(
 @Composable
 fun openNewWindow(file: File, onClose: () -> Unit) {
     Window(onCloseRequest = onClose, title = file.name) {
-        Column(modifier = Modifier.verticalScroll(rememberScrollState()).height(600.dp)) {
+        Column(modifier = Modifier.verticalScroll(rememberScrollState(0)).fillMaxSize()) {
             Text(
                 text = "File Name: ${file.name}",
                 fontWeight = FontWeight(600),
                 fontSize = TextUnit(60f, type = TextUnitType(10))
             )
-            val fileContent = file.readText()
+            val fileContent = file.readLines()
             Text(text = "Content:", fontWeight = FontWeight(600))
-            val end = if (fileContent.length > 5000) {
-                5000
+            val end = if (fileContent.size > 500) {
+                500
             } else {
-                fileContent.length
+                fileContent.size - 1
             }
-            Text(text = fileContent.substring(0, end))
+            for (i in 0..end) {
+                Row(modifier = Modifier.fillMaxWidth().clickable { }) {
+                    Text(text = "${i + 1}")
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(text = fileContent[i])
+                }
+            }
+
         }
     }
 }
